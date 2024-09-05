@@ -14,7 +14,7 @@ print("Planting Data Missing Values:\n", planting_df.isnull().sum())
 # 处理地块数据
 land_df['land_area'] = land_df['land_area'].astype(float)
 
-# 处理作物数据
+# 处理作物数据（价格范围转换为最低价格和最高价格）
 crop_df[['yield', 'cost']] = crop_df[['yield', 'cost']].astype(float)
 crop_df['price_min'] = crop_df['price_range'].apply(lambda x: float(x.split('-')[0]))
 crop_df['price_max'] = crop_df['price_range'].apply(lambda x: float(x.split('-')[1]))
@@ -23,7 +23,7 @@ crop_df.drop(columns=['price_range'], inplace=True)
 # 处理2023年种植数据
 planting_df['crop_area'] = planting_df['crop_area'].astype(float)
 
-# 保存处理后的数据
+# 保存数据
 land_df.to_csv('processed_land_data.csv', index=False)
 crop_df.to_csv('processed_crop_data.csv', index=False)
 planting_df.to_csv('processed_planting_data.csv', index=False)
