@@ -1,12 +1,13 @@
 import pandas as pd
 from scipy.optimize import linprog
+import random
 
 planting_data = pd.read_csv('processed_planting_data.csv') # 2023年的种植数据
 yearly_data = {
     2023: planting_data
 }
 
-
+# 读取之前处理好的数据
 crop_data = pd.read_csv('processed_crop_data.csv')
 land_data = pd.read_csv('processed_land_data.csv')
 # 豆类作物
@@ -16,7 +17,6 @@ for current_year in range(2024, 2031):
     # 读取数据
     planting_data = yearly_data[current_year - 1] # 使用前一年的种植数据作为基础
 
-    # 假设 crop_data, planting_data 和 land_data 是包含所有作物数据、种植面积数据和地块类型数据的 DataFrame
     # 添加 land_type 到 planting_data
     planting_data['land_type'] = planting_data['land_id'].apply(lambda x: land_data[land_data['land_id'] == x]['land_type'].values[0])
 
@@ -56,14 +56,14 @@ for current_year in range(2024, 2031):
 
                 if not crop_info.empty:
                     # price = crop_info['price_min'].values[0]
-                    # price 使用最小值和最大值的平均值
-                    price = (crop_info['price_min'].values[0] + crop_info['price_max'].values[0]) / 2
+                    # price 使用最小值和最大值之间的随机数
+                    price = random.uniform(crop_info['price_min'].values[0], crop_info['price_max'].values[0])
                     yield_per_acre = crop_info['yield'].values[0]
                     cost = crop_info['cost'].values[0]
-                    c.append(-(price * yield_per_acre - cost))  # 负号用于最大化
+                    c.append(-(price * yield_per_acre - cost))  # 因为 linprog 求最小值，所以这里加负号
                 else:
                     c.append(0)
-    # 定义约束矩阵和约束向量
+    # A b 存储约束条件
     A = []
     b = []
 
@@ -88,41 +88,35 @@ for current_year in range(2024, 2031):
                     yield_per_acre = crop_info['yield'].values[0]
                     row[index] = yield_per_acre
             A.append(row)
-            # 使用新的市场需求量 DataFrame
             demand_info = market_demand[(market_demand['crop_name'] == crop) & (market_demand['season'] == season)]
             if not demand_info.empty:
                 b.append(demand_info['market_demand'].values[0])
             else:
                 b.append(0)
 
-    # print(len(c), len(A), len(b))
 
-    # 轮作要求
+    # 豆类轮作要求
+    if current_year >= 2025:
+        previous_years = [current_year - 1, current_year - 2]
+        previous_data = pd.concat([yearly_data[y] for y in previous_years if y in yearly_data])
 
-    # for land in lands:
-    #     for crop in legume_crops:
-    #         row = [0] * (num_crops * num_lands * num_seasons)
-    #         for season in seasons:
-    #             index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
-    #             row[index] = 1
-    #         A.append(row)
-    #         b.append(1)
+        for land in lands:
+            legume_planted = previous_data[(previous_data['land_id'] == land) & (previous_data['crop_name'].isin(legume_crops))]
+            if legume_planted.empty:
+                for crop in legume_crops:
+                    row = [0] * (len(crops) * len(lands) * len(seasons))
+                    for season in seasons:
+                        index = list(lands).index(land) * len(crops) * len(seasons) + list(crops).index(crop) * len(seasons) + list(seasons).index(season)
+                        row[index] = -1
+                    A.append(row)
+                    b.append(0)
+
 
 
     # 求解线性规划问题
-
-
     res = linprog(c, A_ub=A, b_ub=b, method='highs')
 
-    # # 解析结果
-    # if res.success:
-    #     print("最优解：")
-    #     for i, land in enumerate(lands):
-    #         for j, crop in enumerate(crops):
-    #             for k, season in enumerate(seasons):
-    #                 index = i * num_crops * num_seasons + j * num_seasons + k
-    # else:
-    #     print("没有找到可行解")
+    # 输出结果
     if res.success:
         print(f"{current_year}年最优解已找到")
         print(f"最优解：{ -res.fun}")
@@ -149,8 +143,7 @@ for current_year in range(2024, 2031):
         break
 
 
-# 保存到一个Excel文件的不同工作表中
-
+# 保存到excel
 template_df = pd.read_excel("result1_1.xlsx")
 # 0 - 53 行 为第一季
 land_id_first = template_df["地块名"][0:54]
@@ -166,7 +159,6 @@ with pd.ExcelWriter('results.xlsx') as writer:
             continue
 
         df = pd.DataFrame(index=range(0, len(land_id_first) + len(land_id_second)), columns=template_cols)
-        # 请补全这里
         df["地块名"] = pd.concat([land_id_first, land_id_second], ignore_index=True)
         for i, row in data.iterrows():
             land_id = row['land_id']
