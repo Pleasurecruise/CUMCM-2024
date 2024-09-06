@@ -6,6 +6,10 @@ crop_data = pd.read_csv('processed_crop_data.csv')
 land_data = pd.read_csv('processed_land_data.csv')
 planting_data = pd.read_csv('processed_planting_data.csv')
 
+# 豆类作物
+legume_crops = ['黄豆', '黑豆', '红豆', '绿豆', '爬豆', '豇豆', '刀豆', '芸豆']
+
+
 # 假设 crop_data, planting_data 和 land_data 是包含所有作物数据、种植面积数据和地块类型数据的 DataFrame
 # 添加 land_type 到 planting_data
 planting_data['land_type'] = planting_data['land_id'].apply(lambda x: land_data[land_data['land_id'] == x]['land_type'].values[0])
@@ -58,14 +62,13 @@ b = []
 
 # 地块面积限制
 for land in lands:
-    row = [0] * (num_crops * num_lands * num_seasons)
-    for i, crop in enumerate(crops):
-        for j, season in enumerate(seasons):
-            index = lands.tolist().index(land) * num_crops * num_seasons + i * num_seasons + j
+    for season in seasons:
+        row = [0] * (num_crops * num_lands * num_seasons)
+        for i, crop in enumerate(crops):
+            index = lands.tolist().index(land) * num_crops * num_seasons + i * num_seasons + seasons.tolist().index(season)
             row[index] = 1
-    A.append(row)
-    b.append(land_data[land_data['land_id'] == land]['land_area'].values[0])
-
+        A.append(row)
+        b.append(land_data[land_data['land_id'] == land]['land_area'].values[0])
 
 # 市场需求限制
 for crop in crops:
@@ -87,9 +90,10 @@ for crop in crops:
 
 # print(len(c), len(A), len(b))
 
-# # 轮作要求
+# 轮作要求
+
 # for land in lands:
-#     for crop in crops:
+#     for crop in legume_crops:
 #         row = [0] * (num_crops * num_lands * num_seasons)
 #         for season in seasons:
 #             index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
@@ -117,17 +121,8 @@ for crop in crops:
 #             index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
 #             row[index] = 1
 #         A.append(row)
-#         b.append(2) 
+#         b.append(8) 
 
-# # 单类作物面积不宜过小
-# for land in lands:
-#     for crop in crops:
-#         for season in seasons:
-#             row = [0] * (num_crops * num_lands * num_seasons)
-#             index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
-#             row[index] = 1
-#             A.append(row)
-#             b.append(0.5)  # 假设每种作物每季最小种植面积为0.5亩
 
 # 求解线性规划问题
 
