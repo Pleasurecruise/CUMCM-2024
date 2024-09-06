@@ -125,6 +125,7 @@ for current_year in range(2024, 2031):
     #     print("没有找到可行解")
     if res.success:
         print(f"{current_year}年最优解已找到")
+        print(f"最优解：{ -res.fun}")
         rows = []
         for i, land in enumerate(lands):
             for j, crop in enumerate(crops):
