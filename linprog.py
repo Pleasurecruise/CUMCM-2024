@@ -42,6 +42,7 @@ for land in lands:
     A.append(row)
     b.append(land_data[land_data['land_id'] == land]['land_area'].values[0])
 
+
 # 市场需求限制
 for crop in crops:
     for season in seasons:
@@ -55,6 +56,10 @@ for crop in crops:
         A.append(row)
         if not crop_info.empty:
             b.append(crop_info['yield'].values[0])
+        else:
+            b.append(0)
+
+print(len(c), len(A), len(b))
 
 # 轮作要求
 for land in lands:
@@ -99,6 +104,8 @@ for land in lands:
             b.append(0.5)  # 假设每种作物每季最小种植面积为0.5亩
 
 # 求解线性规划问题
+
+
 res = linprog(c, A_ub=A, b_ub=b, method='highs')
 
 # 解析结果
