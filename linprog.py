@@ -24,10 +24,13 @@ for land in lands:
             crop_info = crop_data[(crop_data['crop_name'] == crop) & (crop_data['season'] == season)]
             if not crop_info.empty:
                 price = crop_info['price_min'].values[0]
+                # price 使用最小值和最大值的平均值
+                # price = (crop_info['price_min'].values[0] + crop_info['price_max'].values[0]) / 2
                 yield_per_acre = crop_info['yield'].values[0]
                 cost = crop_info['cost'].values[0]
                 c.append(-(price * yield_per_acre - cost))  # 负号用于最大化
-
+            else:
+                c.append(0)
 # 定义约束矩阵和约束向量
 A = []
 b = []
@@ -93,15 +96,15 @@ for crop in crops:
         A.append(row)
         b.append(10)  # 假设每种作物每季最多种植在10块地上
 
-# 单类作物面积不宜过小
-for land in lands:
-    for crop in crops:
-        for season in seasons:
-            row = [0] * (num_crops * num_lands * num_seasons)
-            index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
-            row[index] = 1
-            A.append(row)
-            b.append(0.5)  # 假设每种作物每季最小种植面积为0.5亩
+# # 单类作物面积不宜过小
+# for land in lands:
+#     for crop in crops:
+#         for season in seasons:
+#             row = [0] * (num_crops * num_lands * num_seasons)
+#             index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
+#             row[index] = 1
+#             A.append(row)
+#             b.append(0.5)  # 假设每种作物每季最小种植面积为0.5亩
 
 # 求解线性规划问题
 
