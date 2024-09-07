@@ -70,7 +70,7 @@ for current_year in range(2024, 2031):
                 else:
                     c.append(0)
                     c_discounted.append(0)
-    # Combine original and discounted coefficients
+    # 降价后的目标函数系数
     c.extend(c_discounted)
 
     # A b 存储约束条件
