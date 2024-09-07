@@ -73,7 +73,9 @@ substitutable_crops = [
 
 # 互补性作物组
 complementary_crops = [
-    ("玉米", "小麦")
+    ("玉米", "小麦"),
+    ("土豆", "白萝卜"),
+    ("西红柿", "茄子")
 ]
 
 for current_year in range(2024, 2031):
@@ -214,12 +216,12 @@ for current_year in range(2024, 2031):
             for land in lands:
                 index1 = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop1) * num_seasons + seasons.tolist().index(season)
                 index2 = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop2) * num_seasons + seasons.tolist().index(season)
-                row1[index1] = 1
+                row1[index1] = -1
                 row1[index1 + num_crops * num_lands * num_seasons] = 1  # 超售部分
                 row2[index2] = -1
                 row2[index2 + num_crops * num_lands * num_seasons] = -1  # 超售部分
             A.append(row1)
-            b.append(land_data['land_area'].sum() * 0.3)  # 限制互补性作物的种植面积比例
+            b.append(-land_data['land_area'].sum() * 0.3)  # 限制互补性作物的种植面积比例
             A.append(row2)
             b.append(-land_data['land_area'].sum() * 0.3)
 
@@ -272,7 +274,7 @@ land_id_second = template_df["地块名"][54:82]
 land_id_second = land_id_second + "_第二季"
 
 template_cols = template_df.columns[2:]
-with pd.ExcelWriter('results/result2.xlsx') as writer:
+with pd.ExcelWriter('results/result3.xlsx') as writer:
     for year, data in yearly_data.items():
         if (year == 2023):
             continue
@@ -295,6 +297,6 @@ with pd.ExcelWriter('results/result2.xlsx') as writer:
 
 # 保存年度利润
 yearly_profit_df = pd.DataFrame(yearly_profit.items(), columns=['year', 'profit'])
-yearly_profit_df.to_excel('results/profit2.xlsx', index=False)
+yearly_profit_df.to_excel('results/profit3.xlsx', index=False)
 
 print("数据已保存")
