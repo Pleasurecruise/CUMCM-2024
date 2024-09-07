@@ -2,20 +2,25 @@ import pandas as pd
 from scipy.optimize import linprog
 import random
 
-planting_data = pd.read_csv('processed_planting_data.csv') # 2023年的种植数据
+planting_data = pd.read_csv('data/processed_planting_data.csv') # 2023年的种植数据
+
+
 yearly_data = {
     2023: planting_data
 }
 
+yearly_profit = {}
+
 # 读取之前处理好的数据
-crop_data = pd.read_csv('processed_crop_data.csv')
-land_data = pd.read_csv('processed_land_data.csv')
+crop_data = pd.read_csv('data/processed_crop_data.csv')
+land_data = pd.read_csv('data/processed_land_data.csv')
+
 # 豆类作物
 legume_crops = ['黄豆', '黑豆', '红豆', '绿豆', '爬豆', '豇豆', '刀豆', '芸豆']
 
 for current_year in range(2024, 2031):
     # 读取数据
-    planting_data = yearly_data[current_year - 1] # 使用前一年的种植数据作为基础
+    planting_data = yearly_data[current_year - 1] # 使用前一年的种植数据作为基础迭代
 
     # 添加 land_type 到 planting_data
     planting_data['land_type'] = planting_data['land_id'].apply(lambda x: land_data[land_data['land_id'] == x]['land_type'].values[0])
@@ -41,7 +46,6 @@ for current_year in range(2024, 2031):
     seasons = ["第一季", "第二季"]
     seasons = pd.Series(seasons)
 
-
     # 定义变量数量
     num_crops = len(crops)
     num_lands = len(lands)
@@ -49,6 +53,7 @@ for current_year in range(2024, 2031):
 
     # 定义目标函数系数
     c = []
+    c_discounted = []
     for land in lands:
         for crop in crops:
             for season in seasons:
@@ -61,8 +66,13 @@ for current_year in range(2024, 2031):
                     yield_per_acre = crop_info['yield'].values[0]
                     cost = crop_info['cost'].values[0]
                     c.append(-(price * yield_per_acre - cost))  # 因为 linprog 求最小值，所以这里加负号
+                    c_discounted.append(-(0.5 * price * yield_per_acre - cost))  # 50%降价
                 else:
                     c.append(0)
+                    c_discounted.append(0)
+    # Combine original and discounted coefficients
+    c.extend(c_discounted)
+
     # A b 存储约束条件
     A = []
     b = []
@@ -70,30 +80,31 @@ for current_year in range(2024, 2031):
     # 地块面积限制
     for land in lands:
         for season in seasons:
-            row = [0] * (num_crops * num_lands * num_seasons)
+            row = [0] * (2 * num_crops * num_lands * num_seasons)
             for i, crop in enumerate(crops):
                 index = lands.tolist().index(land) * num_crops * num_seasons + i * num_seasons + seasons.tolist().index(season)
                 row[index] = 1
+                row[index + num_crops * num_lands * num_seasons] = 1  # 超售部分
             A.append(row)
             b.append(land_data[land_data['land_id'] == land]['land_area'].values[0])
 
     # 市场需求限制
     for crop in crops:
         for season in seasons:
-            row = [0] * (num_crops * num_lands * num_seasons)
+            row = [0] * (2 * num_crops * num_lands * num_seasons)
             for land in lands:
                 index = lands.tolist().index(land) * num_crops * num_seasons + crops.tolist().index(crop) * num_seasons + seasons.tolist().index(season)
                 crop_info = crop_data[(crop_data['crop_name'] == crop) & (crop_data['season'] == season)]
                 if not crop_info.empty:
                     yield_per_acre = crop_info['yield'].values[0]
                     row[index] = yield_per_acre
+                    row[index + num_crops * num_lands * num_seasons] = yield_per_acre  # 超售部分
             A.append(row)
             demand_info = market_demand[(market_demand['crop_name'] == crop) & (market_demand['season'] == season)]
             if not demand_info.empty:
                 b.append(demand_info['market_demand'].values[0])
             else:
                 b.append(0)
-
 
     # 豆类轮作要求
     if current_year >= 2025:
@@ -104,14 +115,13 @@ for current_year in range(2024, 2031):
             legume_planted = previous_data[(previous_data['land_id'] == land) & (previous_data['crop_name'].isin(legume_crops))]
             if legume_planted.empty:
                 for crop in legume_crops:
-                    row = [0] * (len(crops) * len(lands) * len(seasons))
+                    row = [0] * (2 * len(crops) * len(lands) * len(seasons))
                     for season in seasons:
                         index = list(lands).index(land) * len(crops) * len(seasons) + list(crops).index(crop) * len(seasons) + list(seasons).index(season)
                         row[index] = -1
+                        row[index + num_crops * num_lands * num_seasons] = -1  # 超售部分
                     A.append(row)
                     b.append(0)
-
-
 
     # 求解线性规划问题
     res = linprog(c, A_ub=A, b_ub=b, method='highs')
@@ -120,6 +130,8 @@ for current_year in range(2024, 2031):
     if res.success:
         print(f"{current_year}年最优解已找到")
         print(f"最优解：{ -res.fun}")
+        yearly_profit[current_year] = -res.fun
+
         rows = []
         for i, land in enumerate(lands):
             for j, crop in enumerate(crops):
@@ -132,6 +144,14 @@ for current_year in range(2024, 2031):
                             'crop_area': res.x[index],
                             'season': season
                         })
+                    if res.x[index + num_crops * num_lands * num_seasons] > 0:
+                        rows.append({
+                            'land_id': land,
+                            'crop_name': crop,
+                            'crop_area': res.x[index + num_crops * num_lands * num_seasons],
+                            'season': season,
+                            'discounted': True
+                        })
 
         current_year_data = pd.DataFrame(rows)
         print(f"{current_year}年的种植数据：")
@@ -142,9 +162,8 @@ for current_year in range(2024, 2031):
         print(f"{current_year}年没有找到可行解")
         break
 
-
 # 保存到excel
-template_df = pd.read_excel("result1_1.xlsx")
+template_df = pd.read_excel("code/results_template.xlsx")
 # 0 - 53 行 为第一季
 land_id_first = template_df["地块名"][0:54]
 land_id_first = land_id_first + "_第一季"
@@ -153,7 +172,7 @@ land_id_second = template_df["地块名"][54:82]
 land_id_second = land_id_second + "_第二季"
 
 template_cols = template_df.columns[2:]
-with pd.ExcelWriter('results.xlsx') as writer:
+with pd.ExcelWriter('results/1.2.xlsx') as writer:
     for year, data in yearly_data.items():
         if (year == 2023):
             continue
@@ -173,4 +192,10 @@ with pd.ExcelWriter('results.xlsx') as writer:
         df = df.fillna(0)
         df.to_excel(writer, sheet_name=str(year), index=False)
         print(f"已保存{year}年的结果")
-        
+
+
+# 保存年度利润
+yearly_profit_df = pd.DataFrame(yearly_profit.items(), columns=['year', 'profit'])
+yearly_profit_df.to_excel('results/profit1.2.xlsx', index=False)
+
+print("数据已保存")
