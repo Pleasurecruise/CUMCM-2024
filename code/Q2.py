@@ -162,7 +162,10 @@ for current_year in range(2024, 2031):
             A.append(row)
             demand_info = market_demand[(market_demand['crop_name'] == crop) & (market_demand['season'] == season)]
             if not demand_info.empty:
-                b.append(demand_info['market_demand'].values[0] * (1 + random.uniform(-0.05, 0.05)))  # 其他作物市场需求变化±5%
+                if crop in ["小麦", "玉米"]:
+                    b.append(demand_info['market_demand'].values[0] * (1 + random.uniform(0.05, 0.1)))  # 小麦和玉米市场需求增长5%~10%
+                else:
+                    b.append(demand_info['market_demand'].values[0] * (1 + random.uniform(-0.05, 0.05)))  # 其他作物市场需求变化±5%
             else:
                 b.append(0)
 
