@@ -1,6 +1,3 @@
-
-
-
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -16,7 +13,7 @@ n_lands = len(land_data)
 seasons = ["第一季", "第二季"]
 seasons = pd.Series(seasons)
 n_seasons = len(seasons)
-n_simulations = 10  # 可以先减少模拟次数以便调试
+n_simulations = 10 
 
 # 提取作物的价格、成本、产量
 
@@ -43,7 +40,6 @@ legume_crops = ['黄豆', '黑豆', '红豆', '绿豆', '爬豆', '豇豆', '刀
 
 planting_data = yearly_data[current_year - 1] # 使用前一年的种植数据作为基础
 
-# 假设 crop_data, planting_data 和 land_data 是包含所有作物数据、种植面积数据和地块类型数据的 DataFrame
 # 添加 land_type 到 planting_data
 planting_data['land_type'] = planting_data['land_id'].apply(lambda x: land_data[land_data['land_id'] == x]['land_type'].values[0])
 # 合并 crop_data 和 planting_data
